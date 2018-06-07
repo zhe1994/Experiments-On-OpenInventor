@@ -22,11 +22,9 @@
 #include <Inventor/actions/SoGetBoundingBoxAction.h>
 #include <ScaleViz/actions/ScGetBoundingBoxAction.h>
 
-int main(int argc, char **argv)
-{
-		// Initialize Inventor and Xt
-	Widget myWindow = SoXt::init(argv[0]);
-  
+#include <LDM/manips/SoROIManip.h>
+
+void ClipPlaneManip(Widget &myWindow) {
 	SoSeparator *scene = new SoSeparator;
 	SoPerspectiveCamera *myCamera = new SoPerspectiveCamera;
 	SoMaterial *myMaterial = new SoMaterial;
@@ -53,7 +51,6 @@ int main(int argc, char **argv)
 	myRenderArea->setTitle("Hello OIV");
 	myRenderArea->show();
 
-  
 	// Create a viewer
 	// SoXtExaminerViewer *myViewer = new SoXtExaminerViewer(myWindow);
 	// Attach and show viewer
@@ -62,6 +59,52 @@ int main(int argc, char **argv)
 	// myViewer->show();
   
 	// Loop forever
+}
+
+void PlayROI(Widget &myWindow) {
+	SoSeparator *scene = new SoSeparator;
+	SoPerspectiveCamera *myCamera = new SoPerspectiveCamera;
+	SoMaterial *myMaterial = new SoMaterial;
+	scene->ref();
+	scene->insertChild(myCamera, 0);
+	scene->addChild(new SoDirectionalLight);
+	myMaterial->diffuseColor.setValue(1.0, 0.0, 0.0);   // Red
+	scene->addChild(myMaterial);
+	scene->addChild(new SoCone);
+  
+	// Compute the bounding box of the scene graph.
+	SoGetBoundingBoxAction bboxAction(SbViewportRegion(100, 100));
+	bboxAction.apply(scene);
+	// Inserting the manipulator at the center of the scene graph
+	// and in the plane YZ.
+
+	SoROIManip* myROIManip = new SoROIManip();
+	SbVec3i32 i_min(bboxAction.getBoundingBox().getMin());
+	SbVec3i32 i_max(bboxAction.getBoundingBox().getMax());
+	myROIManip->box.setValue(i_min, i_max);
+	scene->addChild(myROIManip);
+
+
+	//SoClipPlaneManip *clipPlaneManip = new SoClipPlaneManip;
+	//clipPlaneManip->setValue(bboxAction.getBoundingBox(),SbVec3f(1, 0, 0), 0.1);
+	//scene->insertChild(clipPlaneManip, 1);
+  
+	SoXtRenderArea *myRenderArea = new SoXtRenderArea(myWindow);
+	myCamera->viewAll(scene, SbViewportRegion(100, 100));
+
+	myRenderArea->setSceneGraph(scene);
+	myRenderArea->setTitle("Hello OIV");
+	myRenderArea->show();
+}
+
+int main(int argc, char **argv)
+{
+	// Initialize Inventor and Xt
+	Widget myWindow = SoXt::init(argv[0]);
+  
+	ClipPlaneManip(myWindow);
+	// PlayROI(myWindow);
+
 	SoXt::show(myWindow);
 	SoXt::mainLoop();
 	return 0;
