@@ -17,88 +17,52 @@
 #include <Inventor/Xt/viewers/SoXtExaminerViewer.h>
 
 #include <Inventor/draggers/SoTranslate1Dragger.h>
+#include <Inventor/manips/SoClipPlaneManip.h>
+#include <Inventor/nodes/SoNode.h>
+#include <Inventor/actions/SoGetBoundingBoxAction.h>
+#include <ScaleViz/actions/ScGetBoundingBoxAction.h>
 
-int main(int , char **argv)
+int main(int argc, char **argv)
 {
-   Widget myWindow = SoXt::init(argv[0]);
-   if (myWindow == NULL) exit(1);
+		// Initialize Inventor and Xt
+	Widget myWindow = SoXt::init(argv[0]);
+  
+	SoSeparator *scene = new SoSeparator;
+	SoPerspectiveCamera *myCamera = new SoPerspectiveCamera;
+	SoMaterial *myMaterial = new SoMaterial;
+	scene->ref();
+	scene->insertChild(myCamera, 0);
+	scene->addChild(new SoDirectionalLight);
+	myMaterial->diffuseColor.setValue(1.0, 0.0, 0.0);   // Red
+	scene->addChild(myMaterial);
+	scene->addChild(new SoCone);
+  
+	// Compute the bounding box of the scene graph.
+	SoGetBoundingBoxAction bboxAction(SbViewportRegion(100, 100));
+	bboxAction.apply(scene);
+	// Inserting the manipulator at the center of the scene graph
+	// and in the plane YZ.
+	SoClipPlaneManip *clipPlaneManip = new SoClipPlaneManip;
+	clipPlaneManip->setValue(bboxAction.getBoundingBox(),SbVec3f(1, 0, 0), 0.1);
+	scene->insertChild(clipPlaneManip, 1);
+  
+	SoXtRenderArea *myRenderArea = new SoXtRenderArea(myWindow);
+	myCamera->viewAll(scene, SbViewportRegion(100, 100));
 
-   SoSeparator *root = new SoSeparator;
-   root->ref();
+	myRenderArea->setSceneGraph(scene);
+	myRenderArea->setTitle("Hello OIV");
+	myRenderArea->show();
 
-   // Create 3 translate1Draggers and place them in space.
-   SoSeparator *xDragSep = new SoSeparator;
-   SoSeparator *yDragSep = new SoSeparator;
-   SoSeparator *zDragSep = new SoSeparator;
-   root->addChild(xDragSep);
-   root->addChild(yDragSep);
-   root->addChild(zDragSep);
-   // Separators will each hold a different transform
-   SoTransform *xDragXf = new SoTransform;
-   SoTransform *yDragXf = new SoTransform;
-   SoTransform *zDragXf = new SoTransform;
-   xDragXf->set("translation 0 -4 8");
-   yDragXf->set("translation -8 0 8 rotation 0 0 1 1.57");
-   zDragXf->set("translation -8 -4 0 rotation 0 1 0 -1.57");
-   xDragSep->addChild(xDragXf);
-   yDragSep->addChild(yDragXf);
-   zDragSep->addChild(zDragXf);
-
-   // Add the draggers under the separators, after transforms
-   SoTranslate1Dragger *xDragger = new SoTranslate1Dragger;
-   SoTranslate1Dragger *yDragger = new SoTranslate1Dragger;
-   SoTranslate1Dragger *zDragger = new SoTranslate1Dragger;
-   xDragSep->addChild(xDragger);
-   yDragSep->addChild(yDragger);
-   zDragSep->addChild(zDragger);
-
-   // Create shape kit for the 3D text
-   // The text says 'Slide Arrows To Move Me'
-   SoShapeKit *textKit = new SoShapeKit;
-   root->addChild(textKit);
-   SoText3 *myText3 = new SoText3;
-   textKit->setPart("shape", myText3);
-   myText3->justification = SoText3::CENTER;
-   myText3->string.set1Value(0,"Slide Arrows");
-   myText3->string.set1Value(1,"To");
-   myText3->string.set1Value(2,"Move Me");
-   textKit->set("font { size 2}");
-   textKit->set("material { diffuseColor 1 1 0}");
-
-   // Create shape kit for surrounding box.
-   // It's an unpickable cube, sized as (16,8,16)
-   SoShapeKit *boxKit = new SoShapeKit;
-   root->addChild(boxKit);
-   boxKit->setPart("shape", new SoCube);
-   boxKit->set("drawStyle { style LINES }");
-   boxKit->set("pickStyle { style UNPICKABLE }");
-   boxKit->set("material { emissiveColor 1 0 1 }");
-   boxKit->set("shape { width 16 height 8 depth 16 }");
-
-   // Create the calculator to make a translation
-   // for the text. The x component of a translate1Dragger's 
-   // translation field shows how far it moved in that 
-   // direction. So our text's translation is:
-   // (xDragTranslate[0],yDragTranslate[0],zDragTranslate[0])
-   SoCalculator *myCalc = new SoCalculator;
-   myCalc->ref();
-   myCalc->A.connectFrom(&xDragger->translation);
-   myCalc->B.connectFrom(&yDragger->translation);
-   myCalc->C.connectFrom(&zDragger->translation);
-   myCalc->expression = "oA = vec3f(A[0],B[0],C[0])";
-
-   // Connect the the translation in textKit from myCalc
-   SoTransform *textXf = (SoTransform *)
-            textKit->getPart("transform",TRUE);
-   textXf->translation.connectFrom(&myCalc->oA);
-
-   SoXtExaminerViewer *myViewer = new
-            SoXtExaminerViewer(myWindow);
-   myViewer->setSceneGraph(root);
-   myViewer->setTitle("Slider Box");
-   myViewer->viewAll();
-   myViewer->show();
-
-   SoXt::show(myWindow);
-   SoXt::mainLoop();
+  
+	// Create a viewer
+	// SoXtExaminerViewer *myViewer = new SoXtExaminerViewer(myWindow);
+	// Attach and show viewer
+	// myViewer->setSceneGraph(scene);
+	// myViewer->setTitle("File Reader");
+	// myViewer->show();
+  
+	// Loop forever
+	SoXt::show(myWindow);
+	SoXt::mainLoop();
+	return 0;
 }
