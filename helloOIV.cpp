@@ -38,12 +38,17 @@
 #include <LDM/nodes/SoMultiDataSeparator.h>
 #include <Inventor/nodes/SoGradientBackground.h>
 #include <Inventor/SbColorRGBA.h>
+#include <Inventor/ViewerComponents/SoCameraInteractor.h>
+#include <Inventor/nodes/SoEventCallback.h>
+#include <Inventor/events/SoLocation2Event.h>
 
 #include <LDM/manips/SoROIManip.h>
 
 #define FILENAME "$OIVHOME/examples/source/VolumeViz/Data/3DHEAD.ldm"
 const SbString VOLUME_FILENAME = "C:/data/SE000001";
 const SbString COLORMAP_FILENAME = "$OIVHOME/examples/source/Medical/data/resources/volrenGlow.am";
+
+static SoRef<SoCameraInteractor> m_interactor;
 
 template<typename T>
 void drawSphere(T* dest, const SbVec3i32& dim, const SbSphere& sphere, T value)
@@ -133,22 +138,20 @@ void PlayROI(Widget &myWindow) {
 	myRenderArea->show();
 }
 
-void VolumeMaskII(Widget &myWindow) {
+void VolumeMask(Widget &myWindow) {
 	// Initialize of VolumeViz extension
 	SoVolumeRendering::init();
 
 	// Node to hold the volume data
 	SoVolumeData* vd = new SoVolumeData();
-	// vd->fileName = FILENAME;
-	 SoVRDicomFileReader *DicomReader = new SoVRDicomFileReader();
-	 DicomReader->setDirectory(VOLUME_FILENAME);
+	SoVRDicomFileReader *DicomReader = new SoVRDicomFileReader();
+	DicomReader->setDirectory(VOLUME_FILENAME);
 	vd->setReader(*DicomReader);
-	//// MedicalHelper::dicomAdjustVolume(vd);
 	vd->ldmResourceParameters.getValue()->subTileDimension.setValue(32, 32, 32);
 
-	//SoDataRange *VRRange = new SoDataRange();
-	//VRRange->min = 176;
-	//VRRange->max = 476;
+	SoDataRange *VRRange = new SoDataRange();
+	VRRange->min = 176;
+	VRRange->max = 476;
 
 	// Node in charge of drawing the volume
 	SoVolumeRender* pVolRender = new SoVolumeRender;
@@ -158,6 +161,8 @@ void VolumeMaskII(Widget &myWindow) {
 	pVolRender->numSlicesControl = SoVolumeRender::MANUAL;
 	pVolRender->numSlices = 256;
 	pVolRender->samplingAlignment = SoVolumeRender::BOUNDARY_ALIGNED;
+	//pVolRender->lowResMode = SoVolumeRender::DECREASE_SCREEN_RESOLUTION;
+	//pVolRender->lowScreenResolutionScale = 2;
 
 	//Material which defines the isosurface diffuse color, transparency,
 	//specular color and shininess
@@ -165,14 +170,14 @@ void VolumeMaskII(Widget &myWindow) {
 	matVolRend->specularColor.setValue(0.3f, 0.3f, 0.3f);
 	matVolRend->shininess.setValue(0.1f);
 
-	//Draw style and transfer function for intersecting masks
-	SoVolumeDataDrawStyle* vdsIntersection = new SoVolumeDataDrawStyle;
-	vdsIntersection->style = SoVolumeDataDrawStyle::VOLUME_RENDER;
+	////Draw style and transfer function for intersecting masks
+	//SoVolumeDataDrawStyle* vdsIntersection = new SoVolumeDataDrawStyle;
+	//vdsIntersection->style = SoVolumeDataDrawStyle::VOLUME_RENDER;
 
-	SoTransferFunction* tfIntersection = new SoTransferFunction;
-	tfIntersection->predefColorMap = SoTransferFunction::BLUE_RED;
-	tfIntersection->minValue = 42;
-	tfIntersection->transferFunctionId = SoVolumeMaskGroup::TRANSFERFUNCTION_INTERSECTION_ID;
+	//SoTransferFunction* tfIntersection = new SoTransferFunction;
+	//tfIntersection->predefColorMap = SoTransferFunction::BLUE_RED;
+	//tfIntersection->minValue = 42;
+	//tfIntersection->transferFunctionId = SoVolumeMaskGroup::TRANSFERFUNCTION_INTERSECTION_ID;
 
 	//Add lighting and preintegration
 	SoVolumeRenderingQuality* vrq = new SoVolumeRenderingQuality;
@@ -184,18 +189,11 @@ void VolumeMaskII(Widget &myWindow) {
 
 	//Add masks/styles/transfer funtion in the SoVolumeMaskGroup
 	SoVolumeMaskGroup* vmg = new SoVolumeMaskGroup;
-	std::vector<SoVolumeMask*> vmList;
-	std::vector<SoVolumeDataDrawStyle*> vmStyleList;
 	SoVolumeMask* vm = new SoVolumeMask;
 	vm->ldmResourceParameters.getValue()->subTileDimension = vd->ldmResourceParameters.getValue()->subTileDimension;
 	vm->extent = vd->extent;
 	vm->dataSetId = vd->dataSetId.getValue() + 1;
-	vmList.push_back(vm);
 
-	vmStyleList.push_back(new SoVolumeDataDrawStyle);
-
-	//Add some random color the the transfer function
-	SbVec3f cmColor = SbVec3f((float)rand(), (float)rand(), (float)rand()) / float(RAND_MAX);
 	SoTransferFunction* tf = new SoTransferFunction;
 	tf->predefColorMap = SoTransferFunction::BLUE_RED;
 	tf->minValue = 42;
@@ -203,50 +201,26 @@ void VolumeMaskII(Widget &myWindow) {
 
 	SbVec3i32 size = vd->data.getSize();
 	std::vector<unsigned char> maskData(size[0] * size[1] * size[2]);
-	drawSphere(&maskData[0], size, SbSphere(SbVec3f(77, 127, 35), 80), (unsigned char)1);
-	// std::fill(maskData.begin(), maskData.end(), 1);
-	vmList[0]->data.setValue(size, SbDataType::UNSIGNED_BYTE,
-		0, &maskData[0], SoSFArray::COPY);
+	drawSphere(&maskData[0], size, SbSphere(SbVec3f(20, 20, 20), 400), (unsigned char)1);
+	vm->data.setValue(size, SbDataType::UNSIGNED_BYTE, 0, &maskData[0], SoSFArray::COPY);
 
 	vmg->addChild(tf);
-	vmg->addChild(vmStyleList.back());
 	vmg->addChild(vm);
-	//for (size_t i = 0; i < NUM_MASKS; i++)
-	//{
-	//	SoVolumeMask* vm = new SoVolumeMask;
-	//	vm->ldmResourceParameters.getValue()->tileDimension = vd->ldmResourceParameters.getValue()->tileDimension;
-	//	vm->extent = vd->extent;
-	//	vm->dataSetId = vd->dataSetId.getValue() + int(i) + 1;
-	//	vmList.push_back(vm);
-
-	//	vmStyleList.push_back(new SoVolumeDataDrawStyle);
-
-	//	//Add some random color the the transfer function
-	//	SbVec3f cmColor = SbVec3f((float)rand(), (float)rand(), (float)rand()) / float(RAND_MAX);
-	//	SoTransferFunction* tf = generateTf(cmColor);
-	//	tf->transferFunctionId.connectFrom(&vm->dataSetId);
-	//	vmg->addChild(tf);
-	//	vmg->addChild(vmStyleList.back());
-	//	vmg->addChild(vm);
-	//}
 
 	//This draw style will be applied on the whole volume
 	SoVolumeDataDrawStyle* vdsGlobal = new SoVolumeDataDrawStyle;
-	vdsGlobal->style = SoVolumeDataDrawStyle::NONE;
-	vdsGlobal->isovalues.set1Value(0, 42);
-	vdsGlobal->isosurfacesMaterial = new SoMaterial;
-	vdsGlobal->isosurfacesMaterial.getValue()->diffuseColor.set1Value(0, SbColor(0., 0., 1.));
-	vdsGlobal->isosurfacesMaterial.getValue()->transparency.set1Value(0, 0.5);
-
-	// generateMasks(vd, vmList, vmStyleList);
+	vdsGlobal->style = SoVolumeDataDrawStyle::VOLUME_RENDER;
+	SoTransferFunction* tfGlobal = new SoTransferFunction;
+	tfGlobal->predefColorMap = SoTransferFunction::GRAY;
 
 	SoMultiDataSeparator* mds = new SoMultiDataSeparator;
 	mds->addChild(vrq);
 	mds->addChild(vdsGlobal);
+	mds->addChild(tfGlobal);
 	mds->addChild(vd);
-	// mds->addChild(VRRange);
-	mds->addChild(tfIntersection);
-	mds->addChild(vdsIntersection);
+	mds->addChild(VRRange);
+	//mds->addChild(tfIntersection);
+	//mds->addChild(vdsIntersection);
 	mds->addChild(vmg);
 	mds->addChild(pVolRender);
 
@@ -260,9 +234,6 @@ void VolumeMaskII(Widget &myWindow) {
 	root->addChild(matVolRend);
 	root->addChild(mds);
 
-	pVolRender->lowResMode = SoVolumeRender::DECREASE_SCREEN_RESOLUTION;
-	pVolRender->lowScreenResolutionScale = 2;
-
 	// Set up viewer:
 	SoXtExaminerViewer *myViewer = new SoXtExaminerViewer(myWindow);
 	myViewer->setTransparencyType(SoGLRenderAction::DELAYED_BLEND);
@@ -271,140 +242,60 @@ void VolumeMaskII(Widget &myWindow) {
 	myViewer->show();
 }
 
-void VolumeMask(Widget &myWindow) {
+void mouseEventCB(void* userData, SoEventCallback* node)
+{
+	static bool m_buttonDown = false;
+	const SoEvent* evt = node->getEvent();
+	if (SO_MOUSE_PRESS_EVENT(evt, BUTTON1)) {
+		m_buttonDown = true;
+		SbVec2f position = evt->getNormalizedPosition(node->getAction()->getViewportRegion());
+		m_interactor->activateOrbiting(position);
+		m_interactor->setRotationCenter(m_interactor->getFocalPoint());
+	}
+	else if (SO_MOUSE_RELEASE_EVENT(evt, BUTTON1)) {
+		m_buttonDown = false;
+	}
+	else if (evt->isOfType(SoLocation2Event::getClassTypeId())) {
+		if (m_buttonDown) {
+			SbVec2f position = evt->getNormalizedPosition(node->getAction()->getViewportRegion());
+			m_interactor->orbit(position);
+		}
+	}
+}
 
-	SoVolumeRendering::init();
-
+void OIVCamera(Widget &myWindow) {
 	SoSeparator *scene = new SoSeparator;
 	scene->ref();
 
-	SoVolumeData *volData = new SoVolumeData();
-	// volData->fileName = FILENAME;
-	SoVRDicomFileReader *DicomReader = new SoVRDicomFileReader();
-	DicomReader->setDirectory(VOLUME_FILENAME);
-	volData->setReader(*DicomReader);
-	volData->ldmResourceParameters.getValue()->subTileDimension.setValue(32, 32, 32);
+	SoPerspectiveCamera *myCamera = new SoPerspectiveCamera;
+	SoXtRenderArea *myRenderArea = new SoXtRenderArea(myWindow);
+	myCamera->viewAll(scene, SbViewportRegion(100, 100));
 
-	// Add specular to change rendering quality.
-	SoMaterial *volumeMaterial = new SoMaterial();
-	volumeMaterial->specularColor.setValue(0.26f, 0.26f, 0.26f);
+	SoCameraInteractor *camearInteractor = SoCameraInteractor::getNewInstance(myCamera);
+	m_interactor = camearInteractor;
 
-	// Load the colorMap
-	SoTransferFunction *pVRTransFunc = new SoTransferFunction();
-	pVRTransFunc->loadColormap(COLORMAP_FILENAME);
+	SoSeparator *cone = new SoSeparator();
+	SoMaterial *coneMat = new SoMaterial();
+	SoTransform *coneTransform = new SoTransform();
+	coneMat->diffuseColor.setValue(1.0, 0.0, 0.0);
+	// coneTransform->translation.setValue(SbVec3f(0.f, 0.f, 0.f));
+	coneTransform->scaleFactor.setValue(SbVec3f(0.5f, 0.5f, 0.5f));
+	cone->addChild(coneTransform);
+	cone->addChild(coneMat);
+	cone->addChild(new SoCone);
 
-	// remap data range 
-	// Note: Our colormap is tuned for a specific data range so we don't use MedicalHelper.
-	SoDataRange *VRRange = new SoDataRange();
-	VRRange->min = 176;
-	VRRange->max = 476;
+	SoEventCallback *eventCB = new SoEventCallback();
+	eventCB->addEventCallback(SoMouseButtonEvent::getClassTypeId(), mouseEventCB);
+	eventCB->addEventCallback(SoLocation2Event::getClassTypeId(), mouseEventCB);
 
-	SoInteractiveComplexity *intercatComplexity = new SoInteractiveComplexity();
-	intercatComplexity->fieldSettings.set1Value(0, "SoComplexity value 0.3 0.5");
-	intercatComplexity->interactiveMode.setValue(SoInteractiveComplexity::FORCE_INTERACTION);
+	scene->insertChild(myCamera, 0);
+	scene->addChild(eventCB);
+	scene->addChild(new SoDirectionalLight);
+	scene->addChild(cone);
 
-	//// Property node which allows SoVolumeRender to draw High Quality volumes.  
-	SoVolumeRenderingQuality *pVRVolQuality = new SoVolumeRenderingQuality();
-	pVRVolQuality->interpolateOnMove = true;
-	pVRVolQuality->deferredLighting = true;
-	pVRVolQuality->preIntegrated = true;
-	pVRVolQuality->ambientOcclusion = true;
-
-	SoVolumeRender* pVolRender = new SoVolumeRender;
-	pVolRender->subdivideTile = TRUE;
-	pVolRender->gpuVertexGen = TRUE;
-	pVolRender->useEarlyZ = TRUE;
-	pVolRender->numSlicesControl = SoVolumeRender::MANUAL;
-	pVolRender->numSlices = 256;
-	pVolRender->samplingAlignment = SoVolumeRender::BOUNDARY_ALIGNED;
-
-	/* Volume Mask*/
-	SoVolumeMaskGroup* vmg = new SoVolumeMaskGroup();
-
-	std::vector<SoVolumeMask*> vmList;
-	std::vector<SoVolumeDataDrawStyle*> vmStyleList;
-
-	SoVolumeMask* vm = new SoVolumeMask();
-	std::cout << "Volume Data Tile Dimension:\t" << volData->ldmResourceParameters.getValue()->tileDimension.getValue() << "\n";
-	std::cout << "Volume Mask Tile Dimension:\n";
-	std::cout << "Before assign:\t" << vm->ldmResourceParameters.getValue()->tileDimension.getValue() << "\n";
-	vm->ldmResourceParameters.getValue()->subTileDimension = volData->ldmResourceParameters.getValue()->subTileDimension;
-	// vm->ldmResourceParameters.getValue()->tileDimension.setValue(512, 512, 256);
-	// vm->ldmResourceParameters.setValue(volData->ldmResourceParameters.getValue());
-	std::cout << "After assign:\t" << vm->ldmResourceParameters.getValue()->tileDimension.getValue() << "\n";
-	vm->extent = volData->extent;
-	vm->dataSetId = volData->dataSetId.getValue() + 1;
-	// vmList.push_back(vm);
-
-	vmStyleList.push_back(new SoVolumeDataDrawStyle());
-	SbVec3f cmColor = SbVec3f((float)rand(), (float)rand(), (float)rand()) / float(RAND_MAX);
-	//SoTransferFunction* tf = new SoTransferFunction;
-	//tf->predefColorMap = SoTransferFunction::BLUE_RED;
-	//tf->minValue = 42;
-
-	SoTransferFunction* tf = new SoTransferFunction;
-	tf->predefColorMap = SoTransferFunction::NONE;
-	tf->colorMapType = SoTransferFunction::RGBA;
-	tf->predefColorMap = SoTransferFunction::STANDARD;
-	tf->minValue = 10;
-
-	float *alphas = new float[256];
-	SbColorRGBA* rgba = new SbColorRGBA[256];
-	for (size_t i = 0; i < 256; i++)
-	{
-		rgba[i][0] = 0.f;
-		rgba[i][1] = 0.f;
-		rgba[i][2] = 1.f;
-		rgba[i][3] = 1.f;
-		// alphas[i] = 0.f;
-	}
-
-	 tf->colorMap.setValues(0, 4 * 256, (float*)rgba);
-	// tf->colorMap.setValues(0, 256, alphas);
-	if (tf->hasTransparency())
-	{
-		std::cout << "has tranparency\n";
-	}
-	else
-	{
-		std::cout << "nah\n";
-	}
-	tf->transferFunctionId.connectFrom(&vm->dataSetId);
-
-	// generateMasks(volData, vmList, vmStyleList);
-	SbVec3i32 size = volData->data.getSize();
-	std::vector<unsigned char> maskData(size[0] * size[1] * size[2]);
-	std::fill(maskData.begin(), maskData.end(), 1);
-	// drawBox(&maskData[0], size, SbBox3i32(SbVec3i32(100, 0, size[2] / 2), size), (unsigned char)1);
-	vm->data.setValue(size, SbDataType::UNSIGNED_BYTE, 0, &maskData[0], SoSFArray::COPY);
-
-	//std::cout << size << "\n";
-	//std::cout << vm->ldmResourceParameters.getValue()->tileDimension.getValue() << "\n";
-	//std::cout << volData->ldmResourceParameters.getValue()->tileDimension.getValue() << "\n";
-
-	vmg->addChild(tf);
-	vmg->addChild(vmStyleList.back());
-	vmg->addChild(vm);
-
-	SoMultiDataSeparator* mds = new SoMultiDataSeparator();
-
-	mds->addChild(volData);
-	mds->addChild(volumeMaterial);
-	mds->addChild(pVRTransFunc);
-	mds->addChild(VRRange);
-	mds->addChild(intercatComplexity);
-	mds->addChild(pVRVolQuality);
-	mds->addChild(vmg);
-	mds->addChild(pVolRender);
-
-	scene->addChild(mds);
-
-	// Create a viewer
-	SoXtExaminerViewer *myViewer = new SoXtExaminerViewer(myWindow);
-	// Attach and show viewer
-	myViewer->setSceneGraph(scene);
-	myViewer->setTitle("File Reader");
-	myViewer->show();
+	myRenderArea->setSceneGraph(scene);
+	myRenderArea->setTitle("OIV Camera");
+	myRenderArea->show();
 }
 
 int main(int argc, char **argv)
@@ -414,8 +305,8 @@ int main(int argc, char **argv)
   
 	// ClipPlaneManip(myWindow);
 	// PlayROI(myWindow);
-	VolumeMask(myWindow);
-	// VolumeMaskII(myWindow);
+	// VolumeMask(myWindow);
+	OIVCamera(myWindow);
 
 	SoXt::show(myWindow);
 	SoXt::mainLoop();
