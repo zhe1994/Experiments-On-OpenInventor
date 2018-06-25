@@ -263,6 +263,35 @@ void mouseEventCB(void* userData, SoEventCallback* node)
 	}
 }
 
+void keyboardCB(void *userData, SoEventCallback *eventCB)
+{
+	const SoEvent* evt = eventCB->getEvent();
+	if (SO_KEY_PRESS_EVENT(evt, Key::W))
+	{
+		m_interactor->translate(SbVec3f(0.f, 0.f, 0.5f));
+		eventCB->setHandled();
+	}
+	else if (SO_KEY_PRESS_EVENT(evt, Key::S))
+	{
+		m_interactor->translate(SbVec3f(0.f, 0.f, -0.5f));
+		eventCB->setHandled();
+	}
+	else if (SO_KEY_PRESS_EVENT(evt, Key::A))
+	{
+		m_interactor->translate(SbVec3f(0.5f, 0.f, 0.f));
+		eventCB->setHandled();
+	}
+	else if (SO_KEY_PRESS_EVENT(evt, Key::D))
+	{
+		m_interactor->translate(SbVec3f(-0.5f, 0.f, 0.f));
+		eventCB->setHandled();
+	}
+	else
+	{
+		eventCB->setHandled();
+	}
+}
+
 void OIVCamera(Widget &myWindow) {
 	SoSeparator *scene = new SoSeparator;
 	scene->ref();
@@ -285,8 +314,9 @@ void OIVCamera(Widget &myWindow) {
 	cone->addChild(new SoCone);
 
 	SoEventCallback *eventCB = new SoEventCallback();
-	eventCB->addEventCallback(SoMouseButtonEvent::getClassTypeId(), mouseEventCB);
-	eventCB->addEventCallback(SoLocation2Event::getClassTypeId(), mouseEventCB);
+	// eventCB->addEventCallback(SoMouseButtonEvent::getClassTypeId(), mouseEventCB);
+	// eventCB->addEventCallback(SoLocation2Event::getClassTypeId(), mouseEventCB);
+	eventCB->addEventCallback(SoKeyboardEvent::getClassTypeId(), keyboardCB);
 
 	scene->insertChild(myCamera, 0);
 	scene->addChild(eventCB);
@@ -298,6 +328,144 @@ void OIVCamera(Widget &myWindow) {
 	myRenderArea->show();
 }
 
+void MutiVolume(Widget &myWindow) {
+	// Initialize of VolumeViz extension
+	SoVolumeRendering::init();
+
+	const SbString volume_file1 = "C:/data/skull";
+	const SbString volume_file2 = "C:/data/vessel";
+
+	//// Node to hold the volume data
+	//SoVolumeData* vd = new SoVolumeData();
+	//SoVRDicomFileReader *DicomReader = new SoVRDicomFileReader();
+	//DicomReader->setDirectory(volume_file1);
+	//vd->setReader(*DicomReader);
+	//vd->ldmResourceParameters.getValue()->subTileDimension.setValue(32, 32, 32);
+
+	//SoDataRange *VRRange = new SoDataRange();
+	//VRRange->min = 176;
+	//VRRange->max = 476;
+
+	//// Node in charge of drawing the volume
+	//SoVolumeRender* pVolRender = new SoVolumeRender;
+	//pVolRender->subdivideTile = TRUE;
+	//pVolRender->gpuVertexGen = TRUE;
+	//pVolRender->useEarlyZ = TRUE;
+	//pVolRender->numSlicesControl = SoVolumeRender::MANUAL;
+	//pVolRender->numSlices = 256;
+	//pVolRender->samplingAlignment = SoVolumeRender::BOUNDARY_ALIGNED;
+
+	////Material which defines the isosurface diffuse color, transparency,
+	////specular color and shininess
+	//SoMaterial *matVolRend = new SoMaterial;
+	//matVolRend->specularColor.setValue(0.3f, 0.3f, 0.3f);
+	//matVolRend->shininess.setValue(0.1f);
+
+	////Add lighting and preintegration
+	//SoVolumeRenderingQuality* vrq = new SoVolumeRenderingQuality;
+	////vrq->lighting = true;
+	//vrq->preIntegrated = true;
+	//vrq->lightingModel = SoVolumeRenderingQuality::OPENGL;
+	//vrq->interpolateOnMove = TRUE;
+	//vrq->deferredLighting = TRUE;
+
+	////Add masks/styles/transfer funtion in the SoVolumeMaskGroup
+	//SoVolumeMaskGroup* vmg = new SoVolumeMaskGroup;
+	//SoVolumeMask* vm = new SoVolumeMask;
+	//vm->ldmResourceParameters.getValue()->subTileDimension = vd->ldmResourceParameters.getValue()->subTileDimension;
+	//vm->extent = vd->extent;
+	//vm->dataSetId = vd->dataSetId.getValue() + 1;
+
+	//SoTransferFunction* tf = new SoTransferFunction;
+	//tf->predefColorMap = SoTransferFunction::BLUE_RED;
+	//tf->minValue = 42;
+	//tf->transferFunctionId.connectFrom(&vm->dataSetId);
+
+	//SbVec3i32 size = vd->data.getSize();
+	//std::vector<unsigned char> maskData(size[0] * size[1] * size[2]);
+	//drawSphere(&maskData[0], size, SbSphere(SbVec3f(20, 20, 20), 400), (unsigned char)1);
+	//vm->data.setValue(size, SbDataType::UNSIGNED_BYTE, 0, &maskData[0], SoSFArray::COPY);
+
+	//vmg->addChild(tf);
+	//vmg->addChild(vm);
+
+	////This draw style will be applied on the whole volume
+	//SoVolumeDataDrawStyle* vdsGlobal = new SoVolumeDataDrawStyle;
+	//vdsGlobal->style = SoVolumeDataDrawStyle::VOLUME_RENDER;
+	//SoTransferFunction* tfGlobal = new SoTransferFunction;
+	//tfGlobal->predefColorMap = SoTransferFunction::GRAY;
+
+	//SoMultiDataSeparator* mds = new SoMultiDataSeparator;
+	//mds->addChild(vrq);
+	//mds->addChild(vdsGlobal);
+	//mds->addChild(tfGlobal);
+	//mds->addChild(vd);
+	//mds->addChild(VRRange);
+	//mds->addChild(vmg);
+	//mds->addChild(pVolRender);
+
+	SoVolumeData* vd2 = new SoVolumeData();
+	SoVRDicomFileReader *DicomReader2 = new SoVRDicomFileReader();
+	DicomReader2->setDirectory(volume_file2);
+	vd2->setReader(*DicomReader2);
+	vd2->ldmResourceParameters.getValue()->subTileDimension.setValue(32, 32, 32);
+
+	SoDataRange *VRRange2 = new SoDataRange();
+	VRRange2->min = 80;
+	VRRange2->max = 476;
+
+	// Node in charge of drawing the volume
+	SoVolumeRender* pVolRender2 = new SoVolumeRender;
+	pVolRender2->subdivideTile = TRUE;
+	pVolRender2->gpuVertexGen = TRUE;
+	pVolRender2->useEarlyZ = TRUE;
+	pVolRender2->numSlicesControl = SoVolumeRender::MANUAL;
+	pVolRender2->numSlices = 256;
+	pVolRender2->samplingAlignment = SoVolumeRender::BOUNDARY_ALIGNED;
+
+	//Material which defines the isosurface diffuse color, transparency,
+	//specular color and shininess
+	SoMaterial *matVolRend2 = new SoMaterial;
+	matVolRend2->specularColor.setValue(0.3f, 0.3f, 0.3f);
+	matVolRend2->shininess.setValue(0.1f);
+
+	//Add lighting and preintegration
+	SoVolumeRenderingQuality* vrq2 = new SoVolumeRenderingQuality;
+	//vrq->lighting = true;
+	vrq2->preIntegrated = true;
+	vrq2->lightingModel = SoVolumeRenderingQuality::OPENGL;
+	vrq2->interpolateOnMove = TRUE;
+	vrq2->deferredLighting = TRUE;
+
+	SoMultiDataSeparator *mds2 = new SoMultiDataSeparator();
+	mds2->addChild(vd2);
+	mds2->addChild(VRRange2);
+	mds2->addChild(matVolRend2);
+	mds2->addChild(vrq2);
+	mds2->addChild(pVolRender2);
+
+	SoVolumeGroup *volume_group = new SoVolumeGroup();
+	// volume_group->addChild(mds);
+	volume_group->addChild(mds2);
+
+	// Assemble the scene graph
+	// Note: SoVolumeRender must appear after the SoVolumeData node.
+	SoSeparator *root = new SoSeparator;
+	root->ref();
+
+	root->addChild(new SoGradientBackground);
+	root->addChild(new SoDirectionalLight);
+	// root->addChild(matVolRend);
+	root->addChild(volume_group);
+
+	// Set up viewer:
+	SoXtExaminerViewer *myViewer = new SoXtExaminerViewer(myWindow);
+	myViewer->setTransparencyType(SoGLRenderAction::DELAYED_BLEND);
+	myViewer->setSceneGraph(root);
+	myViewer->setTitle("Multi Volume");
+	myViewer->show();
+}
+
 int main(int argc, char **argv)
 {
 	// Initialize Inventor and Xt
@@ -306,7 +474,8 @@ int main(int argc, char **argv)
 	// ClipPlaneManip(myWindow);
 	// PlayROI(myWindow);
 	// VolumeMask(myWindow);
-	OIVCamera(myWindow);
+	// OIVCamera(myWindow);
+	MutiVolume(myWindow);
 
 	SoXt::show(myWindow);
 	SoXt::mainLoop();
