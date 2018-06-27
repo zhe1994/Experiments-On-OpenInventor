@@ -41,6 +41,7 @@
 #include <Inventor/ViewerComponents/SoCameraInteractor.h>
 #include <Inventor/nodes/SoEventCallback.h>
 #include <Inventor/events/SoLocation2Event.h>
+#include <Inventor/actions/SoSearchAction.h>
 
 #include <LDM/manips/SoROIManip.h>
 
@@ -49,6 +50,7 @@ const SbString VOLUME_FILENAME = "C:/data/SE000001";
 const SbString COLORMAP_FILENAME = "$OIVHOME/examples/source/Medical/data/resources/volrenGlow.am";
 
 static SoRef<SoCameraInteractor> m_interactor;
+static SoSeparator* pScene = NULL;
 
 template<typename T>
 void drawSphere(T* dest, const SbVec3i32& dim, const SbSphere& sphere, T value)
@@ -466,6 +468,58 @@ void MutiVolume(Widget &myWindow) {
 	myViewer->show();
 }
 
+void SearchForANodeCB(void *userData, SoEventCallback *eventCB)
+{
+	std::cout << "Q pressed\n";
+	const SoEvent* evt = eventCB->getEvent();
+	if (SO_KEY_PRESS_EVENT(evt, Key::Q))
+	{
+		SoSearchAction mySearchAction;
+
+		mySearchAction.setType(SoMaterial::getClassTypeId());
+		mySearchAction.setInterest(SoSearchAction::FIRST);
+		mySearchAction.apply(pScene);
+
+		SoPath* res = mySearchAction.getPath();
+
+		if (res)
+		{
+			SoMaterial* mat = (SoMaterial*)res->getTail();
+			mat->diffuseColor.setValue(0.f, 1.f, 0.f);
+			std::cout << "Color changed\n";
+		}
+
+		eventCB->setHandled();
+	}
+}
+
+void SearchForANode(Widget &myWindow)
+{
+	SoSeparator *scene = new SoSeparator;
+	scene->ref();
+	pScene = scene;
+
+	SoMaterial *myMaterial = new SoMaterial;
+	myMaterial->diffuseColor.setValue(1.0, 0.0, 0.0);   // Red
+
+	SoPerspectiveCamera *myCamera = new SoPerspectiveCamera;
+	myCamera->viewAll(scene, SbViewportRegion(100, 100));
+	
+	SoEventCallback *eventCB = new SoEventCallback();
+	eventCB->addEventCallback(SoKeyboardEvent::getClassTypeId(), SearchForANodeCB);
+
+	scene->insertChild(myCamera, 0);
+	scene->addChild(eventCB);
+	scene->addChild(new SoDirectionalLight);
+	scene->addChild(myMaterial);
+	scene->addChild(new SoCone);
+
+	SoXtRenderArea *myRenderArea = new SoXtRenderArea(myWindow);
+	myRenderArea->setSceneGraph(scene);
+	myRenderArea->setTitle("Hello OIV");
+	myRenderArea->show();
+}
+
 int main(int argc, char **argv)
 {
 	// Initialize Inventor and Xt
@@ -475,7 +529,8 @@ int main(int argc, char **argv)
 	// PlayROI(myWindow);
 	// VolumeMask(myWindow);
 	// OIVCamera(myWindow);
-	MutiVolume(myWindow);
+	// MutiVolume(myWindow);
+	SearchForANode(myWindow);
 
 	SoXt::show(myWindow);
 	SoXt::mainLoop();
